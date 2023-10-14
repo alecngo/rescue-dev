@@ -10,6 +10,7 @@ type AnimalType struct {
 	Coats   []string
 	Genders []string
 	Colors  []string
+	Breeds  []string
 	Links   TypeLinks `mapstructure:"_links"`
 }
 

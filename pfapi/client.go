@@ -12,16 +12,22 @@ import (
 	"golang.org/x/oauth2/clientcredentials"
 )
 
-//DefaultBaseURL contains url for petfinder API
+// DefaultBaseURL contains url for petfinder API
 const DefaultBaseURL = "https://api.petfinder.com/v2"
 
-//Client struct is used to hold http.Client
+var existingClient *Client = nil
+
+// Client struct is used to hold http.Client
 type Client struct {
 	*http.Client
 }
 
-//url is a private function to determine what url to use
-//It will use first the environment variable "PF_BASE_URL" or the constant "DefaultBaseURL"
+type Breed struct {
+	Name string `json:"name"`
+}
+
+// url is a private function to determine what url to use
+// It will use first the environment variable "PF_BASE_URL" or the constant "DefaultBaseURL"
 func url() string {
 	url := os.Getenv("PF_BASE_URL")
 	if url != "" {
@@ -48,8 +54,8 @@ func (c Client) httpGet(url string) ([]byte, error) {
 	return body, nil
 }
 
-//sendRequest is a private function accepting a path as a variable
-//It combines url + path to create the request and sends the request
+// sendRequest is a private function accepting a path as a variable
+// It combines url + path to create the request and sends the request
 func (c Client) sendGetRequest(path string) ([]byte, error) {
 	url := fmt.Sprintf("%s%s", url(), path)
 
@@ -58,10 +64,29 @@ func (c Client) sendGetRequest(path string) ([]byte, error) {
 	return body, err
 }
 
-//NewClient accepts client id and secret client id issued by Petfinder
-//It returns a struct callled Client that contains a pointer to http.Client
-func NewClient(accessToken string, secretAccessToken string) (Client, error) {
-	//New attempt
+// NewClient accepts client id and secret client id issued by Petfinder
+// It returns a struct callled Client that contains a pointer to http.Client
+func GetClient() (*Client, error) {
+	if existingClient != nil {
+		return existingClient, nil
+	}
+
+	// Pull Client ID key and Client Secret Key from environment variables
+	clientID := os.Getenv("PF_CLIENT_ID")
+	clientSecret := os.Getenv("PF_CLIENT_SECRET")
+
+	// Create pfclient Object
+	pfclient, err := newClient(clientID, clientSecret)
+	if err != nil {
+		fmt.Println("Could not create client")
+		return nil, err
+	}
+
+	existingClient = &pfclient
+	return existingClient, nil
+}
+
+func newClient(accessToken string, secretAccessToken string) (Client, error) {
 	url := url()
 
 	conf := &clientcredentials.Config{
@@ -76,8 +101,8 @@ func NewClient(accessToken string, secretAccessToken string) (Client, error) {
 	return Client{client}, nil
 }
 
-//GetAllTypes function is a method of Client
-//It returns a struct of animals types and error
+// GetAllTypes function is a method of Client
+// It returns a struct of animals types and error
 func (c Client) GetAllTypes() ([]AnimalType, error) {
 	body, err := c.sendGetRequest("/types")
 
@@ -98,8 +123,8 @@ func (c Client) GetAllTypes() ([]AnimalType, error) {
 	return animalTypes, nil
 }
 
-//GetType takes a string of the type name (dog, cat, etc) and returns
-//an AnimalType struct and error.
+// GetType takes a string of the type name (dog, cat, etc) and returns
+// an AnimalType struct and error.
 func (c Client) GetType(reqType string) (AnimalType, error) {
 	body, err := c.sendGetRequest("/types/" + reqType)
 
@@ -117,11 +142,48 @@ func (c Client) GetType(reqType string) (AnimalType, error) {
 		return AnimalType{}, err
 	}
 
+	// Fetch the breeds for the given type.
+	breeds, err := c.getBreedsForType(reqType)
+	if err != nil {
+		return AnimalType{}, err
+	}
+
+	// Extract breed names and populate the Breeds field.
+	for _, breed := range breeds {
+		animalType.Breeds = append(animalType.Breeds, breed.Name)
+	}
+
 	return animalType, nil
 }
 
-//GetAnimal takes a string of the type id (1234134) and returns
-//an Animal struct and error.
+func (c Client) getBreedsForType(redType string) ([]Breed, error) {
+	body, err := c.sendGetRequest("/types/" + redType + "/breeds")
+
+	// Handle error from the request.
+	if err != nil {
+		return nil, err
+	}
+
+	var breeds []Breed
+	var message interface{}
+	err = json.Unmarshal(body, &message)
+	if err != nil {
+		return nil, err
+	}
+
+	messageMap := message.(map[string]interface{})
+	breedsMap := messageMap["breeds"].([]interface{})
+
+	err = mapstructure.Decode(breedsMap, &breeds)
+	if err != nil {
+		return nil, err
+	}
+
+	return breeds, nil
+}
+
+// GetAnimal takes a string of the type id (1234134) and returns
+// an Animal struct and error.
 func (c Client) GetAnimalById(animalID string) (Animal, error) {
 	body, err := c.sendGetRequest("/animals/" + animalID)
 	if err != nil {
@@ -145,8 +207,8 @@ func (c Client) GetAnimalById(animalID string) (Animal, error) {
 	return animal, nil
 }
 
-//GetAnimals takes a key,value pair for query string parameters
-//It returns a hash of animals or error
+// GetAnimals takes a key,value pair for query string parameters
+// It returns a hash of animals or error
 func (c Client) GetAnimals(params SearchParams) (AnimalResponse, error) {
 	paramString := params.CreateQueryString()
 	url := fmt.Sprintf("/animals%s", paramString)
@@ -167,8 +229,8 @@ func (c Client) GetAnimals(params SearchParams) (AnimalResponse, error) {
 	return animals, nil
 }
 
-//GetOrganizations takes a key,value pair for query string parameters
-//It returns a hash of organizations or error
+// GetOrganizations takes a key,value pair for query string parameters
+// It returns a hash of organizations or error
 func (c Client) GetOrganizations() (OrganizationResponse, error) {
 	//paramString := params.CreateQueryString()
 	paramString := ""
@@ -192,8 +254,8 @@ func (c Client) GetOrganizations() (OrganizationResponse, error) {
 	return orgs, nil
 }
 
-//GetOrganizationsByID takes a string ID
-//It returns a hash of organizations or error
+// GetOrganizationsByID takes a string ID
+// It returns a hash of organizations or error
 func (c Client) GetOrganizationsByID(organizationID string) (Organization, error) {
 	body, err := c.sendGetRequest("/organizations/" + organizationID)
 	if err != nil {
