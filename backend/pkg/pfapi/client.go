@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"sync"
 
 	"github.com/mitchellh/mapstructure"
 	"golang.org/x/oauth2"
@@ -15,7 +16,9 @@ import (
 // DefaultBaseURL contains url for petfinder API
 const DefaultBaseURL = "https://api.petfinder.com/v2"
 
-var existingClient *Client = nil
+var existingClient *Client
+var once sync.Once
+var clientErr error
 
 // Client struct is used to hold http.Client
 type Client struct {
@@ -67,23 +70,22 @@ func (c Client) sendGetRequest(path string) ([]byte, error) {
 // NewClient accepts client id and secret client id issued by Petfinder
 // It returns a struct callled Client that contains a pointer to http.Client
 func GetClient() (*Client, error) {
-	if existingClient != nil {
-		return existingClient, nil
-	}
+	once.Do(func() {
+		// Pull Client ID key and Client Secret Key from environment variables
+		clientID := os.Getenv("PF_CLIENT_ID")
+		clientSecret := os.Getenv("PF_CLIENT_SECRET")
 
-	// Pull Client ID key and Client Secret Key from environment variables
-	clientID := os.Getenv("PF_CLIENT_ID")
-	clientSecret := os.Getenv("PF_CLIENT_SECRET")
+		// Create pfclient Object
+		pfclient, err := newClient(clientID, clientSecret)
+		if err != nil {
+			fmt.Println("Could not create client")
+			clientErr = err
+			return
+		}
 
-	// Create pfclient Object
-	pfclient, err := newClient(clientID, clientSecret)
-	if err != nil {
-		fmt.Println("Could not create client")
-		return nil, err
-	}
-
-	existingClient = &pfclient
-	return existingClient, nil
+		existingClient = &pfclient
+	})
+	return existingClient, clientErr
 }
 
 func newClient(accessToken string, secretAccessToken string) (Client, error) {

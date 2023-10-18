@@ -1,11 +1,11 @@
-package json
+package cmd
 
 import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 
-	"github.com/petfinder-com/petfinder-go-sdk/pfapi"
+	"github.com/rescue-dev/backend/pkg/pfapi"
 )
 
 var client *pfapi.Client

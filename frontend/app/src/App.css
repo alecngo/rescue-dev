@@ -1,0 +1,40 @@
+/* General container styling */
+.container {
+  font-family: 'Arial', sans-serif;
+  background-color: #f7f7f7;
+  padding: 2rem;
+  border-radius: 10px;
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Main title styling */
+h1.text-center {
+  color: #343a40; /* Bootstrap's default dark gray */
+  border-bottom: 2px solid #007bff; /* Bootstrap's primary blue */
+  padding-bottom: 10px;
+}
+
+/* Custom search section styling */
+.search-section {
+  background-color: #ffffff; /* white background for contrast */
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Spacing between form rows */
+.form-row {
+  margin-bottom: 20px;
+}
+
+/* Custom button hover effect */
+.btn-primary:hover {
+  transform: translateY(-3px); /* Slight move on hover */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Adding some shadow for 3D effect */
+}
+
+.btn-primary:active {
+  transform: translateY(1px); /* Press down effect */
+}
+
+/* You can continue with more custom styles if needed */
